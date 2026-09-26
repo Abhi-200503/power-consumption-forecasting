@@ -437,20 +437,87 @@ elif page == "Natural Language Query":
         # FORECAST
         # ---------------------------------------------
         elif (
-            "forecast" in question_lower
-            or "future" in question_lower
-            or "next 24" in question_lower
-        ):
+    "forecast" in question_lower
+    or "future" in question_lower
+    or "next 24" in question_lower
+    or "predicted" in question_lower
+):
 
+    st.subheader("🔮 Forecast Results")
+
+    # Find numeric forecast column
+    numeric_columns = forecast_df.select_dtypes(
+        include="number"
+    ).columns.tolist()
+
+    if numeric_columns:
+
+        forecast_column = numeric_columns[-1]
+
+        forecast_values = pd.to_numeric(
+            forecast_df[forecast_column],
+            errors="coerce"
+        ).dropna()
+
+        if len(forecast_values) > 0:
+
+            average_forecast = forecast_values.mean()
+            peak_forecast = forecast_values.max()
+            minimum_forecast = forecast_values.min()
+
+            # Natural-language response
             st.success(
-                "The next 24-hour forecast is available "
-                "in the **24-Hour Forecast** section."
+                f"The next 24-hour power consumption forecast has been generated. "
+                f"The predicted average consumption is {average_forecast:.2f}, "
+                f"with a peak of {peak_forecast:.2f} and a minimum of "
+                f"{minimum_forecast:.2f}."
             )
+
+            # Forecast summary
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric(
+                    "Average Forecast",
+                    f"{average_forecast:.2f}"
+                )
+
+            with col2:
+                st.metric(
+                    "Peak Forecast",
+                    f"{peak_forecast:.2f}"
+                )
+
+            with col3:
+                st.metric(
+                    "Minimum Forecast",
+                    f"{minimum_forecast:.2f}"
+                )
+
+            # Forecast graph
+            st.subheader("📈 Forecast Trend")
+
+            st.line_chart(
+                forecast_df[[forecast_column]]
+            )
+
+            # Forecast table
+            st.subheader("📋 Next 24-Hour Forecast")
 
             st.dataframe(
                 forecast_df,
                 use_container_width=True
             )
+
+        else:
+            st.warning(
+                "No valid numeric forecast values were found."
+            )
+
+    else:
+        st.warning(
+            "No numeric forecast column was detected."
+        )
 
         # ---------------------------------------------
         # MODEL
