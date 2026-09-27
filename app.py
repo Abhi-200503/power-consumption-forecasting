@@ -23,7 +23,7 @@ st.set_page_config(
 # FILE PATHS
 # =========================================================
 
-MODEL_FILE = "power_consumption_model_small.pkl"
+MODEL_FILE = os.path.join("data", "power_consumption_model_small.pkl")
 
 # The application supports the CSV either in the root folder
 # or inside the data folder.
