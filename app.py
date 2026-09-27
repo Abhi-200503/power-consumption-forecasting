@@ -4,274 +4,24 @@ import os
 import re
 
 # =========================================================
-# PAGE CONFIGURATION
+# PAGE CONFIGURATION - OLD VERSION
 # =========================================================
 
 st.set_page_config(
-    page_title="Power Forecast AI",
+    page_title="Power Consumption Forecasting",
     page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # =========================================================
-# CUSTOM CSS - ATTRACTIVE UI
+# HEADER - OLD VERSION
 # =========================================================
 
-st.markdown("""
-<style>
+st.title("⚡ Regional Power Consumption Forecasting")
 
-    /* ================================
-       MAIN APPLICATION BACKGROUND
-       ================================ */
-
-    .stApp {
-        background: linear-gradient(
-            135deg,
-            #f8fbff 0%,
-            #eef5ff 50%,
-            #f7faff 100%
-        );
-    }
-
-    /* ================================
-       HEADER CARD
-       ================================ */
-
-    .header-card {
-        padding: 35px 25px;
-        border-radius: 22px;
-        background: linear-gradient(
-            135deg,
-            #ffffff,
-            #eaf3ff
-        );
-        border: 1px solid #d8e6f7;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-        margin-bottom: 25px;
-        text-align: center;
-    }
-
-    .main-title {
-        font-size: 42px;
-        font-weight: 800;
-        letter-spacing: 1px;
-        margin-bottom: 8px;
-    }
-
-    .main-subtitle {
-        font-size: 18px;
-        color: #5f6b7a;
-        margin-top: 5px;
-    }
-
-    /* ================================
-       FEATURE CARDS
-       ================================ */
-
-    .feature-card {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        border: 1px solid #e0e8f2;
-        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.06);
-        min-height: 120px;
-    }
-
-    .feature-title {
-        font-size: 18px;
-        font-weight: 700;
-        margin-bottom: 8px;
-    }
-
-    .feature-text {
-        color: #667085;
-        font-size: 14px;
-    }
-
-    /* ================================
-       METRIC CARDS
-       ================================ */
-
-    div[data-testid="metric-container"] {
-        background: white;
-        border-radius: 15px;
-        padding: 15px;
-        border: 1px solid #e0e8f2;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.06);
-    }
-
-    /* ================================
-       SIDEBAR
-       ================================ */
-
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(
-            180deg,
-            #eef5ff 0%,
-            #ffffff 100%
-        );
-        border-right: 1px solid #dce7f5;
-    }
-
-    /* ================================
-       SIDEBAR TITLE
-       ================================ */
-
-    .sidebar-title {
-        text-align: center;
-        font-size: 23px;
-        font-weight: 800;
-        padding: 10px 0 15px 0;
-    }
-
-    .sidebar-description {
-        text-align: center;
-        font-size: 13px;
-        color: #667085;
-        margin-bottom: 20px;
-    }
-
-    /* ================================
-       INPUT BOX
-       ================================ */
-
-    div[data-baseweb="input"] {
-        border-radius: 12px;
-    }
-
-    /* ================================
-       BUTTON
-       ================================ */
-
-    .stButton > button {
-        border-radius: 10px;
-        font-weight: 600;
-        padding: 10px 20px;
-    }
-
-    /* ================================
-       DATAFRAME
-       ================================ */
-
-    div[data-testid="stDataFrame"] {
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    /* ================================
-       ALERT BOXES
-       ================================ */
-
-    div[data-testid="stAlert"] {
-        border-radius: 12px;
-    }
-
-    /* ================================
-       HEADINGS
-       ================================ */
-
-    h1, h2, h3 {
-        font-weight: 700;
-    }
-
-    /* ================================
-       FOOTER
-       ================================ */
-
-    .footer {
-        text-align: center;
-        color: #718096;
-        font-size: 14px;
-        padding: 25px;
-        margin-top: 20px;
-    }
-
-</style>
-""", unsafe_allow_html=True)
-
-
-# =========================================================
-# HEADER
-# =========================================================
-
-st.markdown("""
-<div class="header-card">
-
-    <div class="main-title">
-        ⚡ Power Consumption Forecasting
-    </div>
-
-    <div class="main-subtitle">
-        AI-Based Power Forecasting & Natural Language Query System
-    </div>
-
-</div>
-""", unsafe_allow_html=True)
-
-
-# =========================================================
-# FEATURE CARDS
-# =========================================================
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-
-    st.markdown("""
-    <div class="feature-card">
-
-        <div class="feature-title">
-            📊 Historical Analysis
-        </div>
-
-        <div class="feature-text">
-            Analyze historical power consumption,
-            trends, statistics and peak readings.
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-
-with col2:
-
-    st.markdown("""
-    <div class="feature-card">
-
-        <div class="feature-title">
-            🔮 24-Hour Forecast
-        </div>
-
-        <div class="feature-text">
-            View predicted power consumption
-            for the next 24 hours.
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-
-with col3:
-
-    st.markdown("""
-    <div class="feature-card">
-
-        <div class="feature-title">
-            💬 Natural Language
-        </div>
-
-        <div class="feature-text">
-            Ask questions about consumption
-            and forecasts using simple English.
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-
-st.divider()
-
+st.markdown(
+    "### AI-Based Power Forecasting and Natural Language Query System"
+)
 
 # =========================================================
 # FILE PATHS
@@ -294,19 +44,17 @@ comparison_file = os.path.join(
     "model_comparison.csv"
 )
 
-
 # =========================================================
-# LOAD DATA
+# LOAD CSV
 # =========================================================
 
 @st.cache_data
 def load_csv(file_path):
-
     return pd.read_csv(file_path)
 
 
 # =========================================================
-# CHECK REQUIRED FILES
+# CHECK FILES
 # =========================================================
 
 missing_files = [
@@ -319,39 +67,27 @@ missing_files = [
     if not os.path.exists(file)
 ]
 
-
 if missing_files:
 
     st.error("❌ Required data files are missing.")
 
-    st.write(
-        "Please make sure these files are available:"
-    )
+    st.write("Please make sure these files are available:")
 
     for file in missing_files:
-
-        st.write(
-            f"• {file}"
-        )
+        st.write(f"• {file}")
 
     st.stop()
 
 
 # =========================================================
-# LOAD DATASETS
+# LOAD DATA
 # =========================================================
 
-processed_df = load_csv(
-    processed_file
-)
+processed_df = load_csv(processed_file)
 
-forecast_df = load_csv(
-    forecast_file
-)
+forecast_df = load_csv(forecast_file)
 
-comparison_df = load_csv(
-    comparison_file
-)
+comparison_df = load_csv(comparison_file)
 
 
 # =========================================================
@@ -370,23 +106,14 @@ def normalize_column(column):
 def find_power_column(df):
 
     preferred_names = [
-
         "power_consumption_mw",
-
         "predicted_power_mw",
-
         "power_consumption",
-
         "predicted_power",
-
         "global_active_power",
-
         "power",
-
         "consumption",
-
         "load",
-
         "value"
     ]
 
@@ -397,9 +124,7 @@ def find_power_column(df):
 
     for name in preferred_names:
 
-        normalized_name = normalize_column(
-            name
-        )
+        normalized_name = normalize_column(name)
 
         if normalized_name in normalized_columns:
 
@@ -421,15 +146,10 @@ def find_power_column(df):
 def find_timestamp_column(df):
 
     preferred_names = [
-
         "timestamp",
-
         "datetime",
-
         "date_time",
-
         "date",
-
         "time"
     ]
 
@@ -440,9 +160,7 @@ def find_timestamp_column(df):
 
     for name in preferred_names:
 
-        normalized_name = normalize_column(
-            name
-        )
+        normalized_name = normalize_column(name)
 
         if normalized_name in normalized_columns:
 
@@ -480,7 +198,6 @@ forecast_timestamp_column = find_timestamp_column(
 
 historical_df = processed_df.copy()
 
-
 if power_column is not None:
 
     historical_df[power_column] = pd.to_numeric(
@@ -515,7 +232,6 @@ if timestamp_column is not None:
 
 forecast_data = forecast_df.copy()
 
-
 if forecast_power_column is not None:
 
     forecast_data[
@@ -549,39 +265,25 @@ if forecast_timestamp_column is not None:
 
 
 # =========================================================
-# SIDEBAR NAVIGATION
+# SIDEBAR
 # =========================================================
 
-with st.sidebar:
+st.sidebar.title("⚡ Power Forecasting")
 
-    st.markdown("""
-    <div class="sidebar-title">
-        ⚡ Power Forecast AI
-    </div>
+st.sidebar.write(
+    "Select an option:"
+)
 
-    <div class="sidebar-description">
-        Intelligent Power Consumption Analysis
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-
-    page = st.radio(
-        "📌 Select Module",
-        [
-            "Dashboard",
-            "Historical Analysis",
-            "24-Hour Forecast",
-            "Model Comparison",
-            "Natural Language Query"
-        ]
-    )
-
-    st.divider()
-
-    st.caption(
-        "⚡ AI & Machine Learning Project"
-    )
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Dashboard",
+        "Historical Analysis",
+        "24-Hour Forecast",
+        "Model Comparison",
+        "Natural Language Query"
+    ]
+)
 
 
 # =========================================================
@@ -617,26 +319,24 @@ if page == "Dashboard":
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "📊 Average Consumption",
+        "Average Consumption",
         f"{values.mean():.2f} MW"
     )
 
     col2.metric(
-        "🔺 Peak Consumption",
+        "Peak Consumption",
         f"{values.max():.2f} MW"
     )
 
     col3.metric(
-        "🔻 Minimum Consumption",
+        "Minimum Consumption",
         f"{values.min():.2f} MW"
     )
 
     col4.metric(
-        "📁 Total Records",
+        "Total Records",
         f"{len(values):,}"
     )
-
-    st.divider()
 
     st.subheader(
         "📈 Historical Consumption Trend"
@@ -773,21 +473,19 @@ elif page == "24-Hour Forecast":
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "📊 Average Forecast",
+        "Average Forecast",
         f"{forecast_values.mean():.2f} MW"
     )
 
     col2.metric(
-        "🔺 Peak Forecast",
+        "Peak Forecast",
         f"{forecast_values.max():.2f} MW"
     )
 
     col3.metric(
-        "🔻 Minimum Forecast",
+        "Minimum Forecast",
         f"{forecast_values.min():.2f} MW"
     )
-
-    st.divider()
 
     st.subheader(
         "📈 Forecast Trend"
@@ -847,12 +545,12 @@ elif page == "Model Comparison":
     if numeric_columns:
 
         selected_metric = st.selectbox(
-            "📊 Select Performance Metric",
+            "Select Performance Metric",
             numeric_columns
         )
 
         st.subheader(
-            f"📈 {selected_metric} Comparison"
+            f"📊 {selected_metric} Comparison"
         )
 
         st.bar_chart(
@@ -884,7 +582,7 @@ elif page == "Natural Language Query":
     )
 
     st.info(
-        "💡 Try: What is the predicted peak consumption?"
+        "💡 Example: What is the predicted peak consumption?"
     )
 
     question = st.text_input(
@@ -898,9 +596,9 @@ elif page == "Natural Language Query":
 
         q = question.lower().strip()
 
-        # -------------------------------------------------
+        # =================================================
         # HISTORICAL VALUES
-        # -------------------------------------------------
+        # =================================================
 
         if power_column is not None:
 
@@ -1023,7 +721,6 @@ elif page == "Natural Language Query":
                     "🔮 Forecast Results"
                 )
 
-
                 # -----------------------------------------
                 # FORECAST PEAK
                 # -----------------------------------------
@@ -1050,7 +747,7 @@ elif page == "Natural Language Query":
                     )
 
                     st.metric(
-                        "🔺 Predicted Peak",
+                        "Predicted Peak",
                         f"{max_value:.2f} MW"
                     )
 
@@ -1062,7 +759,7 @@ elif page == "Natural Language Query":
                         ]
 
                         st.info(
-                            f"⏰ Expected peak time: "
+                            f"Expected peak time: "
                             f"{peak_time}"
                         )
 
@@ -1093,7 +790,7 @@ elif page == "Natural Language Query":
                     )
 
                     st.metric(
-                        "🔻 Predicted Minimum",
+                        "Predicted Minimum",
                         f"{min_value:.2f} MW"
                     )
 
@@ -1105,7 +802,7 @@ elif page == "Natural Language Query":
                         ]
 
                         st.info(
-                            f"⏰ Expected minimum time: "
+                            f"Expected minimum time: "
                             f"{min_time}"
                         )
 
@@ -1131,7 +828,7 @@ elif page == "Natural Language Query":
                     )
 
                     st.metric(
-                        "📊 Predicted Average",
+                        "Predicted Average",
                         f"{avg_value:.2f} MW"
                     )
 
@@ -1165,10 +862,6 @@ elif page == "Natural Language Query":
                     )
 
 
-                # -----------------------------------------
-                # FORECAST TABLE
-                # -----------------------------------------
-
                 st.subheader(
                     "📋 Forecast Readings"
                 )
@@ -1177,11 +870,6 @@ elif page == "Natural Language Query":
                     forecast_data,
                     use_container_width=True
                 )
-
-
-                # -----------------------------------------
-                # FORECAST CHART
-                # -----------------------------------------
 
                 st.subheader(
                     "📈 Forecast Trend"
@@ -1378,7 +1066,7 @@ elif page == "Natural Language Query":
 
 
         # =================================================
-        # 6. TOTAL CONSUMPTION
+        # 6. TOTAL
         # =================================================
 
         elif "total" in q:
@@ -1533,28 +1221,37 @@ elif page == "Natural Language Query":
 
             **Historical Data**
 
-            1. What is the average power consumption?
-            2. What was the peak power consumption?
-            3. What was the minimum power consumption?
-            4. What is the average consumption at 5 PM?
-            5. Show the last 10 readings.
-            6. Show the top 10 peak readings.
+            • What is the average power consumption?
+
+            • What was the peak power consumption?
+
+            • What was the minimum power consumption?
+
+            • What is the average consumption at 5 PM?
+
+            • Show the last 10 readings.
+
+            • Show the top 10 peak readings.
 
             **Forecast Data**
 
-            7. Show the next 24-hour forecast.
-            8. What is the predicted average consumption?
-            9. What is the predicted peak consumption?
-            10. What is the predicted minimum consumption?
+            • Show the next 24-hour forecast.
+
+            • What is the predicted average consumption?
+
+            • What is the predicted peak consumption?
+
+            • What is the predicted minimum consumption?
 
             **Model Performance**
 
-            11. Compare the forecasting models.
+            • Compare the forecasting models.
 
             **Dataset**
 
-            12. How many records are available?
-            13. What is the total consumption?
+            • How many records are available?
+
+            • What is the total consumption?
             """)
 
 
@@ -1564,14 +1261,8 @@ elif page == "Natural Language Query":
 
 st.divider()
 
-st.markdown("""
-<div class="footer">
-
-    ⚡ <b>Power Consumption Forecasting</b>
-    &nbsp; | &nbsp;
-    AI & Machine Learning Project
-    &nbsp; | &nbsp;
-    Natural Language Forecast Assistant
-
-</div>
-""", unsafe_allow_html=True)
+st.caption(
+    "⚡ Power Consumption Forecasting | "
+    "AI & Machine Learning Project | "
+    "Natural Language Forecast Assistant"
+)
