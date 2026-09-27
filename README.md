@@ -218,7 +218,14 @@ Open this URL in your browser to access the Power Consumption Forecasting Dashbo
 ## Author
 
 **Abhi-200503**
+## Grid Telemetry Documentation and Metadata
 
+- [Grid Telemetry Documentation](docs/grid_telemetry_documentation.md)
+- [Grid Telemetry Metadata](metadata/grid_telemetry_metadata.json)
+
+The documentation describes the dataset, forecasting models, evaluation metrics,
+application features, and example queries. The metadata provides structured
+information to support document organization and retrieval.
 GitHub Repository:  
 https://github.com/Abhi-200503/power-consumption-forecasting
 
