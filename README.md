@@ -1,19 +1,23 @@
 
-# Regional Power Consumption Forecasting and Natural Language Query Interface
+# ⚡ Regional Power Consumption Forecasting and Natural Language Query Interface
 
 ## Project Overview
 
-This project forecasts hourly regional power consumption using time-series and machine-learning models and provides a natural-language interface for querying power telemetry data.
+This project forecasts hourly regional power consumption using time-series analysis and machine-learning models. It also provides an interactive Streamlit dashboard with a natural-language query interface for analyzing historical power consumption, generating forecasts, and comparing model performance.
+
+The application helps users understand electricity demand patterns, identify peak and minimum consumption, and explore future power consumption trends.
 
 ## Objectives
 
-- Forecast hourly regional electricity demand
-- Analyze historical power consumption
-- Detect peak and minimum demand
-- Compare forecasting models
-- Provide a natural-language query interface for grid operators
+- Forecast hourly regional electricity demand.
+- Analyze historical power consumption patterns.
+- Identify peak and minimum electricity demand.
+- Compare forecasting models using evaluation metrics.
+- Generate 24-hour power consumption forecasts.
+- Provide a natural-language query interface for exploring power telemetry data.
+- Visualize historical trends and forecasting results through an interactive dashboard.
 
-## Technologies
+## Technologies Used
 
 - Python
 - Pandas
@@ -21,22 +25,27 @@ This project forecasts hourly regional power consumption using time-series and m
 - Matplotlib
 - Scikit-learn
 - Statsmodels
-- Gradio
-- Google Colab
+- Streamlit
+- Machine Learning
+- Time-Series Analysis
 - GitHub
 
 ## Dataset
 
-The initial project uses a synthetic hourly regional power-consumption dataset containing 8760 observations representing one year of hourly measurements.
+The project initially uses a synthetic hourly regional power-consumption dataset containing 8,760 observations representing one year of hourly measurements.
 
-The dataset contains:
+### Dataset Attributes
 
-- timestamp
-- power_consumption_mw
+| Column | Description |
+|---|---|
+| timestamp | Date and time of power consumption measurement |
+| power_consumption_mw | Electricity consumption in megawatts |
+
+The dataset is used for preprocessing, exploratory data analysis, feature engineering, model training, and forecasting.
 
 ## Forecasting Features
 
-The forecasting model uses:
+The forecasting models use the following features:
 
 - Hour
 - Day of week
@@ -48,27 +57,55 @@ The forecasting model uses:
 - 24-hour rolling average
 - 168-hour rolling average
 
-## Models
+These features help capture daily, weekly, and seasonal electricity demand patterns.
 
-### Random Forest
+## Machine Learning Models
 
-A Random Forest regression model is used for hourly demand prediction.
+### 1. Random Forest Regressor
 
-### AutoReg
+A Random Forest regression model is used to predict hourly power consumption based on engineered time-series features.
 
-An autoregressive time-series model is used as a second forecasting approach.
+### 2. AutoReg Model
 
-## Evaluation Metrics
+An autoregressive time-series model is used as a second forecasting approach to capture dependencies between historical power consumption observations.
 
-The models are evaluated using:
+## Model Evaluation Metrics
 
-- MAE
-- RMSE
-- MAPE
+The forecasting models are evaluated using the following metrics:
 
-## Natural Language Interface
+- **MAE (Mean Absolute Error):** Measures the average absolute difference between actual and predicted consumption.
+- **RMSE (Root Mean Squared Error):** Measures prediction error while giving greater weight to larger errors.
+- **MAPE (Mean Absolute Percentage Error):** Measures prediction error as a percentage of actual consumption.
 
-The system allows grid operators to ask questions such as:
+The evaluation results are used to compare forecasting model performance.
+
+## Application Features
+
+### 1. Dashboard
+- Overview of power consumption data.
+- Key consumption statistics.
+- Interactive visualizations.
+
+### 2. Historical Analysis
+- Historical power consumption trends.
+- Consumption pattern analysis.
+- Peak and minimum demand identification.
+
+### 3. 24-Hour Forecast
+- Generate the next 24 hours of predicted power consumption.
+- Display average, peak, and minimum forecast values.
+- Visualize forecast trends.
+
+### 4. Model Comparison
+- Compare Random Forest and AutoReg forecasting models.
+- Display model evaluation metrics.
+- Analyze forecasting performance.
+
+### 5. Natural Language Query Interface
+
+The application allows users to ask questions about power consumption data using natural language.
+
+Example queries:
 
 - What is the average power consumption?
 - What was the peak power consumption?
@@ -79,6 +116,7 @@ The system allows grid operators to ask questions such as:
 
 ## Project Workflow
 
+```text
 Raw Telemetry Data
         |
         v
@@ -96,7 +134,7 @@ Time-Series Forecasting
         +----------------+
         |                |
         v                v
-Random Forest         AutoReg
+ Random Forest        AutoReg
         |                |
         +-------+--------+
                 |
@@ -107,29 +145,83 @@ Random Forest         AutoReg
        24-Hour Forecast
                 |
                 v
-Natural Language Query Interface
+    Interactive Streamlit Dashboard
+                |
+                v
+ Natural Language Query Interface
+```
 
-## Future Improvements
+## Project Structure
 
-- Replace synthetic data with real grid telemetry
-- Add weather data
-- Add renewable-energy generation data
-- Add real-time telemetry ingestion
-- Use advanced models such as XGBoost, LSTM or Transformer models
-- Connect the query system to a SQL database
-- Deploy the application using Streamlit
-## Technologies Used
+```text
+power-consumption-forecasting/
+│
+├── app.py
+├── requirements.txt
+├── README.md
+│
+├── data/
+│   ├── processed_power_consumption.csv
+│   ├── next_24_hour_forecast.csv
+│   └── model_comparison.csv
+│
+└── Power-Consumption-Forecasting/
+    └── Original project dataset
+```
 
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- Streamlit
-- Machine Learning
+## Installation and Setup
 
-## How to Run the Application
+### Step 1: Clone the Repository
 
-Install the required dependencies:
+```bash
+git clone https://github.com/Abhi-200503/power-consumption-forecasting.git
+```
+
+### Step 2: Navigate to the Project Directory
+
+```bash
+cd power-consumption-forecasting
+```
+
+### Step 3: Install Dependencies
 
 ```bash
 pip install -r requirements.txt
+```
+
+### Step 4: Run the Streamlit Application
+
+```bash
+streamlit run app.py
+```
+
+### Step 5: Open the Application
+
+After running the command, Streamlit will provide a local URL, usually:
+
+```text
+http://localhost:8501
+```
+
+Open this URL in your browser to access the Power Consumption Forecasting Dashboard.
+
+## Future Improvements
+
+- Replace synthetic data with real electricity grid telemetry.
+- Integrate weather information for improved forecasting.
+- Include renewable energy generation data.
+- Implement real-time telemetry ingestion.
+- Explore advanced forecasting models such as XGBoost, LSTM, and Transformers.
+- Connect the natural-language query system to a SQL database.
+- Deploy the application using Streamlit Community Cloud.
+
+## Author
+
+**Abhi-200503**
+
+GitHub Repository:  
+https://github.com/Abhi-200503/power-consumption-forecasting
+
+---
+
+⚡ **Regional Power Consumption Forecasting | Machine Learning | Streamlit Dashboard**
