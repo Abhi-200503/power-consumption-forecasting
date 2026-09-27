@@ -1,0 +1,77 @@
+
+{
+  "document_id": "grid-telemetry-001",
+  "document_title": "Grid Telemetry Documentation",
+  "project_name": "Regional Power Consumption Forecasting",
+  "domain": "Smart Grid and Energy Analytics",
+  "document_type": "technical_documentation",
+  "version": "1.0",
+  "language": "en",
+  "dataset": {
+    "name": "Regional Power Consumption Dataset",
+    "type": "synthetic",
+    "observations": 8760,
+    "sampling_frequency": "hourly",
+    "duration": "one_year",
+    "timestamp_field": "timestamp",
+    "measurement_field": "power_consumption_mw",
+    "measurement_unit": "MW"
+  },
+  "forecasting": {
+    "forecast_horizon": "24_hours",
+    "models": [
+      "Random Forest Regression",
+      "AutoReg"
+    ],
+    "evaluation_metrics": [
+      "MAE",
+      "RMSE",
+      "MAPE"
+    ]
+  },
+  "source_files": [
+    "docs/grid_telemetry_documentation.md",
+    "data/processed_power_consumption.csv",
+    "data/next_24_hour_forecast.csv",
+    "data/model_comparison.csv",
+    "app.py"
+  ],
+  "retrieval_metadata": {
+    "keywords": [
+      "grid telemetry",
+      "power consumption",
+      "electricity demand",
+      "hourly load",
+      "historical consumption",
+      "peak demand",
+      "minimum demand",
+      "power forecasting",
+      "Random Forest",
+      "AutoReg",
+      "forecast evaluation",
+      "natural language query"
+    ],
+    "categories": [
+      "historical_analysis",
+      "forecasting",
+      "model_evaluation",
+      "power_telemetry",
+      "natural_language_query"
+    ],
+    "supported_queries": [
+      "average power consumption",
+      "peak power consumption",
+      "minimum power consumption",
+      "top 10 peak readings",
+      "last 10 readings",
+      "24 hour forecast",
+      "model comparison"
+    ]
+  },
+  "limitations": [
+    "Synthetic dataset",
+    "Stored CSV data",
+    "No documented real-time telemetry integration"
+  ],
+  "status": "documented"
+}
