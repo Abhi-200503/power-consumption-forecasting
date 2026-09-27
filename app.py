@@ -23,10 +23,10 @@ st.set_page_config(
 # FILE PATHS
 # =========================================================
 
-MODEL_FILE = os.path.join("data", "power_consumption_model_small.pkl")
-
-# The application supports the CSV either in the root folder
-# or inside the data folder.
+MODEL_FILE = os.path.join(
+    "data",
+    "power_consumption_model_small.pkl"
+)
 
 CSV_OPTIONS = [
     "power_consumption.csv",
@@ -34,6 +34,27 @@ CSV_OPTIONS = [
     os.path.join("data", "power_consumption.csv"),
     os.path.join("data", "processed_power_consumption.csv")
 ]
+
+
+# =========================================================
+# MODEL FEATURES
+# =========================================================
+
+features = [
+    "hour",
+    "day",
+    "day_of_week",
+    "month",
+    "day_of_year",
+    "is_weekend",
+    "lag_1",
+    "lag_24",
+    "lag_168",
+    "rolling_24",
+    "rolling_168"
+]
+
+target = "power_consumption_mw"
 
 
 # =========================================================
@@ -55,7 +76,7 @@ def load_data(file_path):
 
 
 # =========================================================
-# FIND AVAILABLE CSV
+# FIND DATASET
 # =========================================================
 
 data_file = None
@@ -67,30 +88,35 @@ for file_path in CSV_OPTIONS:
 
 
 # =========================================================
-# CHECK REQUIRED FILES
+# CHECK MODEL
 # =========================================================
 
 if not os.path.exists(MODEL_FILE):
 
     st.error(
-        "❌ Trained model file not found: "
-        f"{MODEL_FILE}"
+        f"❌ Trained model file not found: {MODEL_FILE}"
     )
 
     st.info(
         "Make sure power_consumption_model_small.pkl "
-        "is uploaded to the same GitHub repository as app.py."
+        "is inside the data folder."
     )
 
     st.stop()
 
 
+# =========================================================
+# CHECK DATASET
+# =========================================================
+
 if data_file is None:
 
-    st.error("❌ Power consumption CSV file was not found.")
+    st.error(
+        "❌ Power consumption CSV file was not found."
+    )
 
     st.info(
-        "Upload your power consumption CSV to the repository."
+        "Make sure your CSV file is inside the data folder."
     )
 
     st.stop()
@@ -107,8 +133,12 @@ try:
 
 except Exception as e:
 
-    st.error("❌ Error loading model or dataset.")
+    st.error(
+        "❌ Error loading model or dataset."
+    )
+
     st.write(e)
+
     st.stop()
 
 
@@ -130,15 +160,10 @@ missing_columns = [
 if missing_columns:
 
     st.error(
-        "❌ Required columns are missing from the dataset:"
+        "❌ Required columns are missing:"
     )
 
     st.write(missing_columns)
-
-    st.info(
-        "The CSV must contain timestamp and "
-        "power_consumption_mw columns."
-    )
 
     st.stop()
 
@@ -170,7 +195,7 @@ df = df.sort_values(
 
 
 # =========================================================
-# CREATE / RECREATE FEATURES
+# CREATE FEATURES
 # =========================================================
 
 df["hour"] = df["timestamp"].dt.hour
@@ -188,16 +213,18 @@ df["is_weekend"] = (
 ).astype(int)
 
 
-# Lag features
+df["lag_1"] = (
+    df["power_consumption_mw"].shift(1)
+)
 
-df["lag_1"] = df["power_consumption_mw"].shift(1)
+df["lag_24"] = (
+    df["power_consumption_mw"].shift(24)
+)
 
-df["lag_24"] = df["power_consumption_mw"].shift(24)
+df["lag_168"] = (
+    df["power_consumption_mw"].shift(168)
+)
 
-df["lag_168"] = df["power_consumption_mw"].shift(168)
-
-
-# Rolling features
 
 df["rolling_24"] = (
     df["power_consumption_mw"]
@@ -213,31 +240,138 @@ df["rolling_168"] = (
 
 
 # =========================================================
-# MODEL FEATURES
+# FORECAST FUNCTION
 # =========================================================
 
-features = [
-    "hour",
-    "day",
-    "day_of_week",
-    "month",
-    "day_of_year",
-    "is_weekend",
-    "lag_1",
-    "lag_24",
-    "lag_168",
-    "rolling_24",
-    "rolling_168"
-]
+def generate_forecast(dataframe, trained_model):
 
-target = "power_consumption_mw"
+    history = dataframe[
+        [
+            "timestamp",
+            "power_consumption_mw"
+        ]
+    ].copy()
+
+    predictions = []
+
+    last_timestamp = history[
+        "timestamp"
+    ].iloc[-1]
+
+
+    for i in range(1, 25):
+
+        future_timestamp = (
+            last_timestamp
+            + pd.Timedelta(hours=i)
+        )
+
+        values = history[
+            "power_consumption_mw"
+        ].tolist()
+
+
+        lag_1 = values[-1]
+
+        lag_24 = values[-24]
+
+        lag_168 = values[-168]
+
+        rolling_24 = np.mean(
+            values[-24:]
+        )
+
+        rolling_168 = np.mean(
+            values[-168:]
+        )
+
+
+        hour = future_timestamp.hour
+
+        day = future_timestamp.day
+
+        day_of_week = (
+            future_timestamp.dayofweek
+        )
+
+        month = future_timestamp.month
+
+        day_of_year = (
+            future_timestamp.dayofyear
+        )
+
+        is_weekend = int(
+            day_of_week >= 5
+        )
+
+
+        input_data = pd.DataFrame(
+            [[
+                hour,
+                day,
+                day_of_week,
+                month,
+                day_of_year,
+                is_weekend,
+                lag_1,
+                lag_24,
+                lag_168,
+                rolling_24,
+                rolling_168
+            ]],
+            columns=features
+        )
+
+
+        prediction = trained_model.predict(
+            input_data
+        )[0]
+
+
+        predictions.append(
+            prediction
+        )
+
+
+        history = pd.concat(
+            [
+                history,
+                pd.DataFrame(
+                    {
+                        "timestamp": [
+                            future_timestamp
+                        ],
+                        "power_consumption_mw": [
+                            prediction
+                        ]
+                    }
+                )
+            ],
+            ignore_index=True
+        )
+
+
+    forecast_data = pd.DataFrame(
+        {
+            "timestamp": [
+                last_timestamp
+                + pd.Timedelta(hours=i)
+                for i in range(1, 25)
+            ],
+            "predicted_power_mw": predictions
+        }
+    )
+
+    return forecast_data
 
 
 # =========================================================
 # SIDEBAR
 # =========================================================
 
-st.sidebar.title("⚡ Power Forecasting")
+st.sidebar.title(
+    "⚡ Power Forecasting"
+)
 
 st.sidebar.write(
     "Select an option:"
@@ -311,6 +445,7 @@ if page == "Dashboard":
         f"{len(values):,}"
     )
 
+
     st.subheader(
         "📈 Historical Consumption Trend"
     )
@@ -322,6 +457,7 @@ if page == "Dashboard":
     st.line_chart(
         chart_df
     )
+
 
     st.subheader(
         "📋 Dataset Preview"
@@ -352,6 +488,7 @@ elif page == "Historical Analysis":
         use_container_width=True
     )
 
+
     st.subheader(
         "📈 Historical Consumption Trend"
     )
@@ -363,6 +500,7 @@ elif page == "Historical Analysis":
     st.line_chart(
         chart_df
     )
+
 
     st.subheader(
         "🔥 Top 10 Peak Consumption Records"
@@ -394,160 +532,24 @@ elif page == "24-Hour Forecast":
         "Random Forest model."
     )
 
-    # -----------------------------------------------------
-    # Check sufficient historical data
-    # -----------------------------------------------------
 
     if len(df) < 168:
 
         st.error(
-            "At least 168 historical records are required "
-            "to generate the forecast."
+            "At least 168 historical records are required."
         )
 
         st.stop()
 
 
-    # -----------------------------------------------------
-    # Generate future predictions
-    # -----------------------------------------------------
-
-    history = df[
-        [
-            "timestamp",
-            "power_consumption_mw"
-        ]
-    ].copy()
-
-    predictions = []
-
-    last_timestamp = history[
-        "timestamp"
-    ].iloc[-1]
-
-
-    for i in range(1, 25):
-
-        future_timestamp = (
-            last_timestamp
-            + pd.Timedelta(hours=i)
-        )
-
-        values = history[
-            "power_consumption_mw"
-        ].tolist()
-
-        # Need previous 1 hour
-        lag_1 = values[-1]
-
-        # Need value 24 hours ago
-        lag_24 = values[-24]
-
-        # Need value 168 hours ago
-        lag_168 = values[-168]
-
-        # Rolling 24-hour average
-        rolling_24 = np.mean(
-            values[-24:]
-        )
-
-        # Rolling 168-hour average
-        rolling_168 = np.mean(
-            values[-168:]
-        )
-
-
-        # Calendar features
-
-        hour = future_timestamp.hour
-
-        day = future_timestamp.day
-
-        day_of_week = (
-            future_timestamp.dayofweek
-        )
-
-        month = future_timestamp.month
-
-        day_of_year = (
-            future_timestamp.dayofyear
-        )
-
-        is_weekend = int(
-            day_of_week >= 5
-        )
-
-
-        # Create model input
-
-        input_data = pd.DataFrame(
-            [[
-                hour,
-                day,
-                day_of_week,
-                month,
-                day_of_year,
-                is_weekend,
-                lag_1,
-                lag_24,
-                lag_168,
-                rolling_24,
-                rolling_168
-            ]],
-            columns=features
-        )
-
-
-        # Prediction
-
-        prediction = model.predict(
-            input_data
-        )[0]
-
-        predictions.append(
-            prediction
-        )
-
-
-        # Add predicted value to history
-        # so the next hour can use it.
-
-        history = pd.concat(
-            [
-                history,
-                pd.DataFrame(
-                    {
-                        "timestamp": [
-                            future_timestamp
-                        ],
-                        "power_consumption_mw": [
-                            prediction
-                        ]
-                    }
-                )
-            ],
-            ignore_index=True
-        )
-
-
-    # -----------------------------------------------------
-    # Create forecast dataframe
-    # -----------------------------------------------------
-
-    forecast_data = pd.DataFrame(
-        {
-            "timestamp": [
-                last_timestamp
-                + pd.Timedelta(hours=i)
-                for i in range(1, 25)
-            ],
-            "predicted_power_mw": predictions
-        }
+    forecast_data = generate_forecast(
+        df,
+        model
     )
 
 
     # -----------------------------------------------------
-    # Forecast metrics
+    # FORECAST METRICS
     # -----------------------------------------------------
 
     col1, col2, col3 = st.columns(3)
@@ -569,7 +571,7 @@ elif page == "24-Hour Forecast":
 
 
     # -----------------------------------------------------
-    # Peak information
+    # PEAK
     # -----------------------------------------------------
 
     peak_index = forecast_data[
@@ -586,6 +588,7 @@ elif page == "24-Hour Forecast":
         "timestamp"
     ]
 
+
     st.success(
         f"⚡ Predicted peak consumption: "
         f"{peak_value:.2f} MW"
@@ -597,7 +600,7 @@ elif page == "24-Hour Forecast":
 
 
     # -----------------------------------------------------
-    # Forecast chart
+    # CHART
     # -----------------------------------------------------
 
     st.subheader(
@@ -616,7 +619,7 @@ elif page == "24-Hour Forecast":
 
 
     # -----------------------------------------------------
-    # Forecast table
+    # TABLE
     # -----------------------------------------------------
 
     st.subheader(
@@ -645,10 +648,6 @@ elif page == "Model Performance":
     )
 
 
-    # -----------------------------------------------------
-    # Remove rows with missing lag/rolling features
-    # -----------------------------------------------------
-
     evaluation_df = df.dropna(
         subset=features
     ).copy()
@@ -657,7 +656,7 @@ elif page == "Model Performance":
     if len(evaluation_df) == 0:
 
         st.error(
-            "Not enough data available for model evaluation."
+            "Not enough data available for evaluation."
         )
 
         st.stop()
@@ -668,31 +667,20 @@ elif page == "Model Performance":
     y = evaluation_df[target]
 
 
-    # -----------------------------------------------------
-    # Time-series 80/20 split
-    # -----------------------------------------------------
-
     split = int(
         len(evaluation_df) * 0.8
     )
+
 
     X_test = X.iloc[split:]
 
     y_test = y.iloc[split:]
 
 
-    # -----------------------------------------------------
-    # Predictions
-    # -----------------------------------------------------
-
     y_pred = model.predict(
         X_test
     )
 
-
-    # -----------------------------------------------------
-    # Metrics
-    # -----------------------------------------------------
 
     mae = mean_absolute_error(
         y_test,
@@ -711,10 +699,6 @@ elif page == "Model Performance":
         y_pred
     )
 
-
-    # -----------------------------------------------------
-    # Display metrics
-    # -----------------------------------------------------
 
     col1, col2, col3 = st.columns(3)
 
@@ -784,6 +768,7 @@ elif page == "Natural Language Query":
         "24-hour forecasts, and model performance."
     )
 
+
     st.info(
         "💡 Example: What is the predicted peak consumption?"
     )
@@ -801,26 +786,240 @@ elif page == "Natural Language Query":
 
         q = question.lower().strip()
 
-
-        # =================================================
-        # BASIC HISTORICAL VALUES
-        # =================================================
-
         values = df[target]
 
 
         # =================================================
-        # TOP N
+        # GENERATE FORECAST ONLY WHEN NEEDED
         # =================================================
 
-        top_match = re.search(
-            r"(?:top|highest|largest)\s*(\d+)",
-            q
+        forecast_keywords = [
+            "forecast",
+            "predicted",
+            "prediction",
+            "future",
+            "next 24",
+            "tomorrow"
+        ]
+
+        is_forecast_question = any(
+            word in q
+            for word in forecast_keywords
         )
 
 
+        # =================================================
+        # PREDICTED / FORECAST PEAK
+        # =================================================
+
         if (
-            top_match
+            is_forecast_question
+            and any(
+                word in q
+                for word in [
+                    "peak",
+                    "maximum",
+                    "max",
+                    "highest"
+                ]
+            )
+        ):
+
+            forecast_data = generate_forecast(
+                df,
+                model
+            )
+
+
+            index = forecast_data[
+                "predicted_power_mw"
+            ].idxmax()
+
+
+            value = forecast_data.loc[
+                index,
+                "predicted_power_mw"
+            ]
+
+
+            time = forecast_data.loc[
+                index,
+                "timestamp"
+            ]
+
+
+            st.success(
+                f"Predicted peak consumption "
+                f"is {value:.2f} MW."
+            )
+
+
+            st.metric(
+                "Predicted Peak",
+                f"{value:.2f} MW"
+            )
+
+
+            st.info(
+                f"Expected peak time: {time}"
+            )
+
+
+        # =================================================
+        # PREDICTED / FORECAST MINIMUM
+        # =================================================
+
+        elif (
+            is_forecast_question
+            and any(
+                word in q
+                for word in [
+                    "minimum",
+                    "lowest",
+                    "smallest",
+                    "min"
+                ]
+            )
+        ):
+
+            forecast_data = generate_forecast(
+                df,
+                model
+            )
+
+
+            index = forecast_data[
+                "predicted_power_mw"
+            ].idxmin()
+
+
+            value = forecast_data.loc[
+                index,
+                "predicted_power_mw"
+            ]
+
+
+            time = forecast_data.loc[
+                index,
+                "timestamp"
+            ]
+
+
+            st.success(
+                f"Predicted minimum consumption "
+                f"is {value:.2f} MW."
+            )
+
+
+            st.metric(
+                "Predicted Minimum",
+                f"{value:.2f} MW"
+            )
+
+
+            st.info(
+                f"Expected minimum time: {time}"
+            )
+
+
+        # =================================================
+        # PREDICTED / FORECAST AVERAGE
+        # =================================================
+
+        elif (
+            is_forecast_question
+            and any(
+                word in q
+                for word in [
+                    "average",
+                    "mean",
+                    "avg"
+                ]
+            )
+        ):
+
+            forecast_data = generate_forecast(
+                df,
+                model
+            )
+
+
+            value = forecast_data[
+                "predicted_power_mw"
+            ].mean()
+
+
+            st.success(
+                f"Predicted average consumption "
+                f"is {value:.2f} MW."
+            )
+
+
+            st.metric(
+                "Predicted Average",
+                f"{value:.2f} MW"
+            )
+
+
+        # =================================================
+        # COMPLETE FORECAST
+        # =================================================
+
+        elif is_forecast_question:
+
+            forecast_data = generate_forecast(
+                df,
+                model
+            )
+
+
+            st.success(
+                "The next 24-hour forecast "
+                "has been generated successfully."
+            )
+
+
+            col1, col2, col3 = st.columns(3)
+
+
+            col1.metric(
+                "Average",
+                f"{forecast_data['predicted_power_mw'].mean():.2f} MW"
+            )
+
+
+            col2.metric(
+                "Peak",
+                f"{forecast_data['predicted_power_mw'].max():.2f} MW"
+            )
+
+
+            col3.metric(
+                "Minimum",
+                f"{forecast_data['predicted_power_mw'].min():.2f} MW"
+            )
+
+
+            st.subheader(
+                "📋 Forecast"
+            )
+
+
+            st.dataframe(
+                forecast_data,
+                use_container_width=True
+            )
+
+
+        # =================================================
+        # TOP N HISTORICAL READINGS
+        # =================================================
+
+        elif (
+            re.search(
+                r"(?:top|highest|largest)\s*(\d+)",
+                q
+            )
             and any(
                 word in q
                 for word in [
@@ -833,9 +1032,16 @@ elif page == "Natural Language Query":
             )
         ):
 
+            top_match = re.search(
+                r"(?:top|highest|largest)\s*(\d+)",
+                q
+            )
+
+
             n = int(
                 top_match.group(1)
             )
+
 
             n = max(
                 1,
@@ -845,263 +1051,27 @@ elif page == "Natural Language Query":
                 )
             )
 
+
             top_records = df.nlargest(
                 n,
                 target
             )
 
+
             st.subheader(
                 f"📊 Top {n} Peak Readings"
             )
+
 
             st.dataframe(
                 top_records,
                 use_container_width=True
             )
 
+
             st.metric(
                 "Highest Consumption",
                 f"{top_records[target].max():.2f} MW"
-            )
-
-
-        # =================================================
-        # FORECAST QUESTIONS
-        # =================================================
-
-        elif any(
-            word in q
-            for word in [
-                "forecast",
-                "predicted",
-                "prediction",
-                "future",
-                "next 24",
-                "tomorrow"
-            ]
-        ):
-
-            # Generate forecast using same logic
-
-            history = df[
-                [
-                    "timestamp",
-                    "power_consumption_mw"
-                ]
-            ].copy()
-
-            predictions = []
-
-            last_timestamp = history[
-                "timestamp"
-            ].iloc[-1]
-
-
-            for i in range(1, 25):
-
-                future_timestamp = (
-                    last_timestamp
-                    + pd.Timedelta(hours=i)
-                )
-
-                values_list = history[
-                    "power_consumption_mw"
-                ].tolist()
-
-                input_data = pd.DataFrame(
-                    [[
-                        future_timestamp.hour,
-                        future_timestamp.day,
-                        future_timestamp.dayofweek,
-                        future_timestamp.month,
-                        future_timestamp.dayofyear,
-                        int(
-                            future_timestamp.dayofweek >= 5
-                        ),
-                        values_list[-1],
-                        values_list[-24],
-                        values_list[-168],
-                        np.mean(
-                            values_list[-24:]
-                        ),
-                        np.mean(
-                            values_list[-168:]
-                        )
-                    ]],
-                    columns=features
-                )
-
-                prediction = model.predict(
-                    input_data
-                )[0]
-
-                predictions.append(
-                    prediction
-                )
-
-                history = pd.concat(
-                    [
-                        history,
-                        pd.DataFrame(
-                            {
-                                "timestamp": [
-                                    future_timestamp
-                                ],
-                                "power_consumption_mw": [
-                                    prediction
-                                ]
-                            }
-                        )
-                    ],
-                    ignore_index=True
-                )
-
-
-            forecast_data = pd.DataFrame(
-                {
-                    "timestamp": [
-                        last_timestamp
-                        + pd.Timedelta(hours=i)
-                        for i in range(1, 25)
-                    ],
-                    "predicted_power_mw": predictions
-                }
-            )
-
-
-            # Peak
-
-            if any(
-                word in q
-                for word in [
-                    "peak",
-                    "maximum",
-                    "max",
-                    "highest"
-                ]
-            ):
-
-                index = forecast_data[
-                    "predicted_power_mw"
-                ].idxmax()
-
-                value = forecast_data.loc[
-                    index,
-                    "predicted_power_mw"
-                ]
-
-                time = forecast_data.loc[
-                    index,
-                    "timestamp"
-                ]
-
-                st.success(
-                    f"Predicted peak consumption "
-                    f"is {value:.2f} MW."
-                )
-
-                st.metric(
-                    "Predicted Peak",
-                    f"{value:.2f} MW"
-                )
-
-                st.info(
-                    f"Expected peak time: {time}"
-                )
-
-
-            # Minimum
-
-            elif any(
-                word in q
-                for word in [
-                    "minimum",
-                    "lowest",
-                    "smallest",
-                    "min"
-                ]
-            ):
-
-                index = forecast_data[
-                    "predicted_power_mw"
-                ].idxmin()
-
-                value = forecast_data.loc[
-                    index,
-                    "predicted_power_mw"
-                ]
-
-                st.success(
-                    f"Predicted minimum consumption "
-                    f"is {value:.2f} MW."
-                )
-
-                st.metric(
-                    "Predicted Minimum",
-                    f"{value:.2f} MW"
-                )
-
-
-            # Average
-
-            elif any(
-                word in q
-                for word in [
-                    "average",
-                    "mean",
-                    "avg"
-                ]
-            ):
-
-                value = forecast_data[
-                    "predicted_power_mw"
-                ].mean()
-
-                st.success(
-                    f"Predicted average consumption "
-                    f"is {value:.2f} MW."
-                )
-
-                st.metric(
-                    "Predicted Average",
-                    f"{value:.2f} MW"
-                )
-
-
-            # Complete forecast
-
-            else:
-
-                st.success(
-                    "The next 24-hour forecast "
-                    "has been generated successfully."
-                )
-
-                col1, col2, col3 = st.columns(3)
-
-                col1.metric(
-                    "Average",
-                    f"{forecast_data['predicted_power_mw'].mean():.2f} MW"
-                )
-
-                col2.metric(
-                    "Peak",
-                    f"{forecast_data['predicted_power_mw'].max():.2f} MW"
-                )
-
-                col3.metric(
-                    "Minimum",
-                    f"{forecast_data['predicted_power_mw'].min():.2f} MW"
-                )
-
-
-            st.subheader(
-                "📋 Forecast"
-            )
-
-            st.dataframe(
-                forecast_data,
-                use_container_width=True
             )
 
 
@@ -1120,11 +1090,13 @@ elif page == "Natural Language Query":
                 q
             )
 
+
             n = (
                 int(number_match.group(1))
                 if number_match
                 else 10
             )
+
 
             n = max(
                 1,
@@ -1134,6 +1106,12 @@ elif page == "Natural Language Query":
                 )
             )
 
+
+            st.subheader(
+                f"📋 Last {n} Readings"
+            )
+
+
             st.dataframe(
                 df.tail(n),
                 use_container_width=True
@@ -1141,7 +1119,7 @@ elif page == "Natural Language Query":
 
 
         # =================================================
-        # AVERAGE
+        # HISTORICAL AVERAGE
         # =================================================
 
         elif (
@@ -1154,6 +1132,7 @@ elif page == "Natural Language Query":
                 f"is {values.mean():.2f} MW."
             )
 
+
             st.metric(
                 "Average Consumption",
                 f"{values.mean():.2f} MW"
@@ -1161,7 +1140,7 @@ elif page == "Natural Language Query":
 
 
         # =================================================
-        # MINIMUM
+        # HISTORICAL MINIMUM
         # =================================================
 
         elif any(
@@ -1175,10 +1154,12 @@ elif page == "Natural Language Query":
 
             index = values.idxmin()
 
+
             st.success(
                 f"Minimum power consumption "
                 f"is {values.min():.2f} MW."
             )
+
 
             st.dataframe(
                 df.loc[[index]],
@@ -1187,7 +1168,7 @@ elif page == "Natural Language Query":
 
 
         # =================================================
-        # MAXIMUM / PEAK
+        # HISTORICAL MAXIMUM / PEAK
         # =================================================
 
         elif any(
@@ -1202,10 +1183,12 @@ elif page == "Natural Language Query":
 
             index = values.idxmax()
 
+
             st.success(
                 f"Peak power consumption "
                 f"is {values.max():.2f} MW."
             )
+
 
             st.dataframe(
                 df.loc[[index]],
@@ -1264,14 +1247,74 @@ elif page == "Natural Language Query":
             ]
         ):
 
-            st.info(
-                "The trained Random Forest model "
-                "is used for power consumption forecasting."
+            evaluation_df = df.dropna(
+                subset=features
+            ).copy()
+
+
+            X = evaluation_df[features]
+
+            y = evaluation_df[target]
+
+
+            split = int(
+                len(evaluation_df) * 0.8
             )
 
-            st.write(
-                "Use the **Model Performance** page "
-                "to view MAE, RMSE and R²."
+
+            X_test = X.iloc[split:]
+
+            y_test = y.iloc[split:]
+
+
+            y_pred = model.predict(
+                X_test
+            )
+
+
+            mae = mean_absolute_error(
+                y_test,
+                y_pred
+            )
+
+
+            rmse = np.sqrt(
+                mean_squared_error(
+                    y_test,
+                    y_pred
+                )
+            )
+
+
+            r2 = r2_score(
+                y_test,
+                y_pred
+            )
+
+
+            st.subheader(
+                "🤖 Random Forest Performance"
+            )
+
+
+            col1, col2, col3 = st.columns(3)
+
+
+            col1.metric(
+                "MAE",
+                f"{mae:.2f} MW"
+            )
+
+
+            col2.metric(
+                "RMSE",
+                f"{rmse:.2f} MW"
+            )
+
+
+            col3.metric(
+                "R² Score",
+                f"{r2:.4f}"
             )
 
 
@@ -1284,6 +1327,7 @@ elif page == "Natural Language Query":
             st.warning(
                 "I could not identify that question."
             )
+
 
             st.markdown(
                 """
