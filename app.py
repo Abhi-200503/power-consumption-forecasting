@@ -1,10 +1,15 @@
+```python
 import streamlit as st
 import pandas as pd
+import numpy as np
 import os
 import re
+import joblib
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
 
 # =========================================================
-# PAGE CONFIGURATION - OLD VERSION
+# PAGE CONFIGURATION
 # =========================================================
 
 st.set_page_config(
@@ -13,255 +18,219 @@ st.set_page_config(
     layout="wide"
 )
 
-# =========================================================
-# HEADER - OLD VERSION
-# =========================================================
-
-st.title("⚡ Regional Power Consumption Forecasting")
-
-st.markdown(
-    "### AI-Based Power Forecasting and Natural Language Query System"
-)
 
 # =========================================================
 # FILE PATHS
 # =========================================================
 
-DATA_FOLDER = "data"
+MODEL_FILE = "power_consumption_model_small.pkl"
 
-processed_file = os.path.join(
-    DATA_FOLDER,
-    "processed_power_consumption.csv"
-)
+# The application supports the CSV either in the root folder
+# or inside the data folder.
 
-forecast_file = os.path.join(
-    DATA_FOLDER,
-    "next_24_hour_forecast.csv"
-)
-
-comparison_file = os.path.join(
-    DATA_FOLDER,
-    "model_comparison.csv"
-)
-
-# =========================================================
-# LOAD CSV
-# =========================================================
-
-@st.cache_data
-def load_csv(file_path):
-    return pd.read_csv(file_path)
-
-
-# =========================================================
-# CHECK FILES
-# =========================================================
-
-missing_files = [
-    file
-    for file in [
-        processed_file,
-        forecast_file,
-        comparison_file
-    ]
-    if not os.path.exists(file)
+CSV_OPTIONS = [
+    "power_consumption.csv",
+    "processed_power_consumption.csv",
+    os.path.join("data", "power_consumption.csv"),
+    os.path.join("data", "processed_power_consumption.csv")
 ]
 
-if missing_files:
 
-    st.error("❌ Required data files are missing.")
+# =========================================================
+# LOAD MODEL
+# =========================================================
 
-    st.write("Please make sure these files are available:")
-
-    for file in missing_files:
-        st.write(f"• {file}")
-
-    st.stop()
+@st.cache_resource
+def load_model():
+    return joblib.load(MODEL_FILE)
 
 
 # =========================================================
 # LOAD DATA
 # =========================================================
 
-processed_df = load_csv(processed_file)
-
-forecast_df = load_csv(forecast_file)
-
-comparison_df = load_csv(comparison_file)
+@st.cache_data
+def load_data(file_path):
+    return pd.read_csv(file_path)
 
 
 # =========================================================
-# COLUMN DETECTION
+# FIND AVAILABLE CSV
 # =========================================================
 
-def normalize_column(column):
+data_file = None
 
-    return re.sub(
-        r"[^a-z0-9]",
-        "",
-        str(column).lower()
+for file_path in CSV_OPTIONS:
+    if os.path.exists(file_path):
+        data_file = file_path
+        break
+
+
+# =========================================================
+# CHECK REQUIRED FILES
+# =========================================================
+
+if not os.path.exists(MODEL_FILE):
+
+    st.error(
+        "❌ Trained model file not found: "
+        f"{MODEL_FILE}"
     )
 
+    st.info(
+        "Make sure power_consumption_model_small.pkl "
+        "is uploaded to the same GitHub repository as app.py."
+    )
 
-def find_power_column(df):
-
-    preferred_names = [
-        "power_consumption_mw",
-        "predicted_power_mw",
-        "power_consumption",
-        "predicted_power",
-        "global_active_power",
-        "power",
-        "consumption",
-        "load",
-        "value"
-    ]
-
-    normalized_columns = {
-        normalize_column(col): col
-        for col in df.columns
-    }
-
-    for name in preferred_names:
-
-        normalized_name = normalize_column(name)
-
-        if normalized_name in normalized_columns:
-
-            return normalized_columns[
-                normalized_name
-            ]
-
-    numeric_columns = df.select_dtypes(
-        include="number"
-    ).columns.tolist()
-
-    if numeric_columns:
-
-        return numeric_columns[-1]
-
-    return None
+    st.stop()
 
 
-def find_timestamp_column(df):
+if data_file is None:
 
-    preferred_names = [
+    st.error("❌ Power consumption CSV file was not found.")
+
+    st.info(
+        "Upload your power consumption CSV to the repository."
+    )
+
+    st.stop()
+
+
+# =========================================================
+# LOAD MODEL AND DATA
+# =========================================================
+
+try:
+
+    model = load_model()
+    df = load_data(data_file)
+
+except Exception as e:
+
+    st.error("❌ Error loading model or dataset.")
+    st.write(e)
+    st.stop()
+
+
+# =========================================================
+# CHECK REQUIRED COLUMNS
+# =========================================================
+
+required_columns = [
+    "timestamp",
+    "power_consumption_mw"
+]
+
+missing_columns = [
+    col
+    for col in required_columns
+    if col not in df.columns
+]
+
+if missing_columns:
+
+    st.error(
+        "❌ Required columns are missing from the dataset:"
+    )
+
+    st.write(missing_columns)
+
+    st.info(
+        "The CSV must contain timestamp and "
+        "power_consumption_mw columns."
+    )
+
+    st.stop()
+
+
+# =========================================================
+# PREPARE DATA
+# =========================================================
+
+df["timestamp"] = pd.to_datetime(
+    df["timestamp"],
+    errors="coerce"
+)
+
+df["power_consumption_mw"] = pd.to_numeric(
+    df["power_consumption_mw"],
+    errors="coerce"
+)
+
+df = df.dropna(
+    subset=[
         "timestamp",
-        "datetime",
-        "date_time",
-        "date",
-        "time"
+        "power_consumption_mw"
     ]
-
-    normalized_columns = {
-        normalize_column(col): col
-        for col in df.columns
-    }
-
-    for name in preferred_names:
-
-        normalized_name = normalize_column(name)
-
-        if normalized_name in normalized_columns:
-
-            return normalized_columns[
-                normalized_name
-            ]
-
-    return None
-
-
-# =========================================================
-# DETECT COLUMNS
-# =========================================================
-
-power_column = find_power_column(
-    processed_df
 )
 
-timestamp_column = find_timestamp_column(
-    processed_df
+df = df.sort_values(
+    "timestamp"
+).reset_index(drop=True)
+
+
+# =========================================================
+# CREATE / RECREATE FEATURES
+# =========================================================
+
+df["hour"] = df["timestamp"].dt.hour
+
+df["day"] = df["timestamp"].dt.day
+
+df["day_of_week"] = df["timestamp"].dt.dayofweek
+
+df["month"] = df["timestamp"].dt.month
+
+df["day_of_year"] = df["timestamp"].dt.dayofyear
+
+df["is_weekend"] = (
+    df["day_of_week"] >= 5
+).astype(int)
+
+
+# Lag features
+
+df["lag_1"] = df["power_consumption_mw"].shift(1)
+
+df["lag_24"] = df["power_consumption_mw"].shift(24)
+
+df["lag_168"] = df["power_consumption_mw"].shift(168)
+
+
+# Rolling features
+
+df["rolling_24"] = (
+    df["power_consumption_mw"]
+    .rolling(24)
+    .mean()
 )
 
-forecast_power_column = find_power_column(
-    forecast_df
+df["rolling_168"] = (
+    df["power_consumption_mw"]
+    .rolling(168)
+    .mean()
 )
 
-forecast_timestamp_column = find_timestamp_column(
-    forecast_df
-)
-
 
 # =========================================================
-# PREPARE HISTORICAL DATA
+# MODEL FEATURES
 # =========================================================
 
-historical_df = processed_df.copy()
+features = [
+    "hour",
+    "day",
+    "day_of_week",
+    "month",
+    "day_of_year",
+    "is_weekend",
+    "lag_1",
+    "lag_24",
+    "lag_168",
+    "rolling_24",
+    "rolling_168"
+]
 
-if power_column is not None:
-
-    historical_df[power_column] = pd.to_numeric(
-        historical_df[power_column],
-        errors="coerce"
-    )
-
-    historical_df = historical_df.dropna(
-        subset=[power_column]
-    )
-
-
-if timestamp_column is not None:
-
-    historical_df[timestamp_column] = pd.to_datetime(
-        historical_df[timestamp_column],
-        errors="coerce"
-    )
-
-    historical_df = historical_df.dropna(
-        subset=[timestamp_column]
-    )
-
-    historical_df = historical_df.sort_values(
-        timestamp_column
-    )
-
-
-# =========================================================
-# PREPARE FORECAST DATA
-# =========================================================
-
-forecast_data = forecast_df.copy()
-
-if forecast_power_column is not None:
-
-    forecast_data[
-        forecast_power_column
-    ] = pd.to_numeric(
-        forecast_data[
-            forecast_power_column
-        ],
-        errors="coerce"
-    )
-
-    forecast_data = forecast_data.dropna(
-        subset=[forecast_power_column]
-    )
-
-
-if forecast_timestamp_column is not None:
-
-    forecast_data[
-        forecast_timestamp_column
-    ] = pd.to_datetime(
-        forecast_data[
-            forecast_timestamp_column
-        ],
-        errors="coerce"
-    )
-
-    forecast_data = forecast_data.dropna(
-        subset=[forecast_timestamp_column]
-    )
+target = "power_consumption_mw"
 
 
 # =========================================================
@@ -280,9 +249,27 @@ page = st.sidebar.radio(
         "Dashboard",
         "Historical Analysis",
         "24-Hour Forecast",
-        "Model Comparison",
+        "Model Performance",
         "Natural Language Query"
     ]
+)
+
+
+# =========================================================
+# HEADER
+# =========================================================
+
+st.title(
+    "⚡ Regional Power Consumption Forecasting"
+)
+
+st.markdown(
+    "### AI-Based Power Forecasting and Natural Language Query System"
+)
+
+st.caption(
+    f"Dataset: {data_file} | "
+    f"Records: {len(df):,}"
 )
 
 
@@ -297,24 +284,10 @@ if page == "Dashboard":
     )
 
     st.write(
-        "Overview of historical power consumption."
+        "Overview of historical regional power consumption."
     )
 
-    if power_column is None:
-
-        st.error(
-            "Power consumption column not found."
-        )
-
-        st.write(
-            processed_df.columns.tolist()
-        )
-
-        st.stop()
-
-    values = historical_df[
-        power_column
-    ]
+    values = df[target]
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -333,936 +306,5 @@ if page == "Dashboard":
         f"{values.min():.2f} MW"
     )
 
-    col4.metric(
-        "Total Records",
-        f"{len(values):,}"
-    )
-
-    st.subheader(
-        "📈 Historical Consumption Trend"
-    )
-
-    if timestamp_column is not None:
-
-        chart_df = historical_df.set_index(
-            timestamp_column
-        )[[power_column]]
-
-        st.line_chart(
-            chart_df
-        )
-
-    else:
-
-        st.line_chart(
-            historical_df[
-                [power_column]
-            ]
-        )
-
-    st.subheader(
-        "📋 Dataset Preview"
-    )
-
-    st.dataframe(
-        historical_df.head(20),
-        use_container_width=True
-    )
-
-
-# =========================================================
-# HISTORICAL ANALYSIS
-# =========================================================
-
-elif page == "Historical Analysis":
-
-    st.header(
-        "📈 Historical Power Consumption"
-    )
-
-    if power_column is None:
-
-        st.error(
-            "Power column not found."
-        )
-
-        st.stop()
-
-    st.subheader(
-        "📊 Statistical Summary"
-    )
-
-    st.dataframe(
-        historical_df[
-            power_column
-        ].describe(),
-        use_container_width=True
-    )
-
-    st.subheader(
-        "📈 Historical Consumption Trend"
-    )
-
-    if timestamp_column is not None:
-
-        chart_df = historical_df.set_index(
-            timestamp_column
-        )[[power_column]]
-
-        st.line_chart(
-            chart_df
-        )
-
-    else:
-
-        st.line_chart(
-            historical_df[
-                [power_column]
-            ]
-        )
-
-    st.subheader(
-        "🔥 Top 10 Peak Consumption Records"
-    )
-
-    top_records = historical_df.nlargest(
-        10,
-        power_column
-    )
-
-    st.dataframe(
-        top_records,
-        use_container_width=True
-    )
-
-
-# =========================================================
-# 24-HOUR FORECAST
-# =========================================================
-
-elif page == "24-Hour Forecast":
-
-    st.header(
-        "🔮 Next 24-Hour Power Forecast"
-    )
-
-    st.write(
-        "Predicted power consumption for the next 24 hours."
-    )
-
-    if forecast_power_column is None:
-
-        st.error(
-            "Forecast power column not found."
-        )
-
-        st.write(
-            "Available forecast columns:"
-        )
-
-        st.write(
-            forecast_df.columns.tolist()
-        )
-
-        st.stop()
-
-    forecast_values = forecast_data[
-        forecast_power_column
-    ]
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric(
-        "Average Forecast",
-        f"{forecast_values.mean():.2f} MW"
-    )
-
-    col2.metric(
-        "Peak Forecast",
-        f"{forecast_values.max():.2f} MW"
-    )
-
-    col3.metric(
-        "Minimum Forecast",
-        f"{forecast_values.min():.2f} MW"
-    )
-
-    st.subheader(
-        "📈 Forecast Trend"
-    )
-
-    if forecast_timestamp_column is not None:
-
-        chart_df = forecast_data.set_index(
-            forecast_timestamp_column
-        )[[forecast_power_column]]
-
-        st.line_chart(
-            chart_df
-        )
-
-    else:
-
-        st.line_chart(
-            forecast_data[
-                [forecast_power_column]
-            ]
-        )
-
-    st.subheader(
-        "📋 Forecast Readings"
-    )
-
-    st.dataframe(
-        forecast_data,
-        use_container_width=True
-    )
-
-
-# =========================================================
-# MODEL COMPARISON
-# =========================================================
-
-elif page == "Model Comparison":
-
-    st.header(
-        "🤖 Forecasting Model Comparison"
-    )
-
-    st.write(
-        "Compare the performance metrics of the forecasting models."
-    )
-
-    st.dataframe(
-        comparison_df,
-        use_container_width=True
-    )
-
-    numeric_columns = comparison_df.select_dtypes(
-        include="number"
-    ).columns.tolist()
-
-    if numeric_columns:
-
-        selected_metric = st.selectbox(
-            "Select Performance Metric",
-            numeric_columns
-        )
-
-        st.subheader(
-            f"📊 {selected_metric} Comparison"
-        )
-
-        st.bar_chart(
-            comparison_df.set_index(
-                comparison_df.columns[0]
-            )[[selected_metric]]
-        )
-
-    else:
-
-        st.info(
-            "No numeric model metrics found."
-        )
-
-
-# =========================================================
-# NATURAL LANGUAGE QUERY
-# =========================================================
-
-elif page == "Natural Language Query":
-
-    st.header(
-        "💬 Natural Language Query"
-    )
-
-    st.write(
-        "Ask questions about historical power consumption, "
-        "24-hour forecasts, and model performance."
-    )
-
-    st.info(
-        "💡 Example: What is the predicted peak consumption?"
-    )
-
-    question = st.text_input(
-        "Enter your question",
-        placeholder=(
-            "Example: What is the predicted peak consumption?"
-        )
-    )
-
-    if question:
-
-        q = question.lower().strip()
-
-        # =================================================
-        # HISTORICAL VALUES
-        # =================================================
-
-        if power_column is not None:
-
-            values = historical_df[
-                power_column
-            ]
-
-        else:
-
-            values = None
-
-
-        # =================================================
-        # 1. TOP N PEAK READINGS
-        # =================================================
-
-        top_match = re.search(
-            r"(?:top|highest|largest)\s*(\d+)",
-            q
-        )
-
-        if (
-            top_match
-            and any(
-                word in q
-                for word in [
-                    "peak",
-                    "reading",
-                    "consumption",
-                    "value",
-                    "power"
-                ]
-            )
-        ):
-
-            if power_column is None:
-
-                st.error(
-                    "Historical power column not found."
-                )
-
-            else:
-
-                n = int(
-                    top_match.group(1)
-                )
-
-                n = max(
-                    1,
-                    min(
-                        n,
-                        len(historical_df)
-                    )
-                )
-
-                top_records = historical_df.nlargest(
-                    n,
-                    power_column
-                )
-
-                st.subheader(
-                    f"📊 Top {n} Peak Readings"
-                )
-
-                st.success(
-                    f"Here are the top {n} "
-                    "highest power consumption readings."
-                )
-
-                st.dataframe(
-                    top_records,
-                    use_container_width=True
-                )
-
-                st.metric(
-                    "Highest Consumption",
-                    f"{top_records[power_column].max():.2f} MW"
-                )
-
-
-        # =================================================
-        # 2. FORECAST QUESTIONS
-        # =================================================
-
-        elif any(
-            word in q
-            for word in [
-                "forecast",
-                "predicted",
-                "prediction",
-                "future",
-                "next 24",
-                "next 24 hour",
-                "next 24 hours",
-                "tomorrow"
-            ]
-        ):
-
-            if forecast_power_column is None:
-
-                st.error(
-                    "Forecast data is unavailable."
-                )
-
-                st.write(
-                    "Available forecast columns:"
-                )
-
-                st.write(
-                    forecast_df.columns.tolist()
-                )
-
-            else:
-
-                fv = forecast_data[
-                    forecast_power_column
-                ]
-
-                st.subheader(
-                    "🔮 Forecast Results"
-                )
-
-                # -----------------------------------------
-                # FORECAST PEAK
-                # -----------------------------------------
-
-                if any(
-                    word in q
-                    for word in [
-                        "peak",
-                        "maximum",
-                        "max",
-                        "highest"
-                    ]
-                ):
-
-                    max_index = fv.idxmax()
-
-                    max_value = fv.loc[
-                        max_index
-                    ]
-
-                    st.success(
-                        f"Predicted peak consumption "
-                        f"is {max_value:.2f} MW."
-                    )
-
-                    st.metric(
-                        "Predicted Peak",
-                        f"{max_value:.2f} MW"
-                    )
-
-                    if forecast_timestamp_column is not None:
-
-                        peak_time = forecast_data.loc[
-                            max_index,
-                            forecast_timestamp_column
-                        ]
-
-                        st.info(
-                            f"Expected peak time: "
-                            f"{peak_time}"
-                        )
-
-
-                # -----------------------------------------
-                # FORECAST MINIMUM
-                # -----------------------------------------
-
-                elif any(
-                    word in q
-                    for word in [
-                        "minimum",
-                        "lowest",
-                        "smallest",
-                        "min"
-                    ]
-                ):
-
-                    min_index = fv.idxmin()
-
-                    min_value = fv.loc[
-                        min_index
-                    ]
-
-                    st.success(
-                        f"Predicted minimum consumption "
-                        f"is {min_value:.2f} MW."
-                    )
-
-                    st.metric(
-                        "Predicted Minimum",
-                        f"{min_value:.2f} MW"
-                    )
-
-                    if forecast_timestamp_column is not None:
-
-                        min_time = forecast_data.loc[
-                            min_index,
-                            forecast_timestamp_column
-                        ]
-
-                        st.info(
-                            f"Expected minimum time: "
-                            f"{min_time}"
-                        )
-
-
-                # -----------------------------------------
-                # FORECAST AVERAGE
-                # -----------------------------------------
-
-                elif any(
-                    word in q
-                    for word in [
-                        "average",
-                        "mean",
-                        "avg"
-                    ]
-                ):
-
-                    avg_value = fv.mean()
-
-                    st.success(
-                        f"Predicted average consumption "
-                        f"is {avg_value:.2f} MW."
-                    )
-
-                    st.metric(
-                        "Predicted Average",
-                        f"{avg_value:.2f} MW"
-                    )
-
-
-                # -----------------------------------------
-                # COMPLETE FORECAST
-                # -----------------------------------------
-
-                else:
-
-                    st.success(
-                        f"The next 24-hour forecast "
-                        f"contains {len(fv)} predicted readings."
-                    )
-
-                    col1, col2, col3 = st.columns(3)
-
-                    col1.metric(
-                        "Average Forecast",
-                        f"{fv.mean():.2f} MW"
-                    )
-
-                    col2.metric(
-                        "Peak Forecast",
-                        f"{fv.max():.2f} MW"
-                    )
-
-                    col3.metric(
-                        "Minimum Forecast",
-                        f"{fv.min():.2f} MW"
-                    )
-
-
-                st.subheader(
-                    "📋 Forecast Readings"
-                )
-
-                st.dataframe(
-                    forecast_data,
-                    use_container_width=True
-                )
-
-                st.subheader(
-                    "📈 Forecast Trend"
-                )
-
-                if forecast_timestamp_column is not None:
-
-                    chart_df = forecast_data.set_index(
-                        forecast_timestamp_column
-                    )[[forecast_power_column]]
-
-                    st.line_chart(
-                        chart_df
-                    )
-
-                else:
-
-                    st.line_chart(
-                        forecast_data[
-                            [forecast_power_column]
-                        ]
-                    )
-
-
-        # =================================================
-        # 3. LAST N READINGS
-        # =================================================
-
-        elif (
-            "last" in q
-            or "recent" in q
-            or "latest" in q
-        ) and any(
-            word in q
-            for word in [
-                "reading",
-                "record",
-                "data",
-                "consumption"
-            ]
-        ):
-
-            if power_column is None:
-
-                st.error(
-                    "Historical power column not found."
-                )
-
-            else:
-
-                number_match = re.search(
-                    r"(?:last|recent|latest)\s*(\d+)",
-                    q
-                )
-
-                n = (
-                    int(number_match.group(1))
-                    if number_match
-                    else 10
-                )
-
-                n = max(
-                    1,
-                    min(
-                        n,
-                        len(historical_df)
-                    )
-                )
-
-                last_records = historical_df.tail(n)
-
-                st.success(
-                    f"Showing the last {n} readings."
-                )
-
-                st.dataframe(
-                    last_records,
-                    use_container_width=True
-                )
-
-
-        # =================================================
-        # 4. AVERAGE AT SPECIFIC HOUR
-        # =================================================
-
-        elif (
-            ("average" in q or "mean" in q)
-            and re.search(
-                r"\b(at|during)\b",
-                q
-            )
-            and timestamp_column is not None
-        ):
-
-            hour_match = re.search(
-                r"\b(at|during)\s+"
-                r"(\d{1,2})"
-                r"(?::\d{2})?\s*"
-                r"(am|pm)?\b",
-                q
-            )
-
-            if hour_match:
-
-                hour = int(
-                    hour_match.group(2)
-                )
-
-                period = hour_match.group(3)
-
-                if period == "pm" and hour < 12:
-
-                    hour += 12
-
-                elif period == "am" and hour == 12:
-
-                    hour = 0
-
-                if 0 <= hour <= 23:
-
-                    matching_values = historical_df[
-                        historical_df[
-                            timestamp_column
-                        ].dt.hour == hour
-                    ][power_column]
-
-                    if len(matching_values) > 0:
-
-                        result = matching_values.mean()
-
-                        st.success(
-                            f"Average power consumption "
-                            f"at {hour:02d}:00 is "
-                            f"{result:.2f} MW."
-                        )
-
-                        st.metric(
-                            "Average Consumption",
-                            f"{result:.2f} MW"
-                        )
-
-                        st.write(
-                            f"Number of matching readings: "
-                            f"{len(matching_values)}"
-                        )
-
-                    else:
-
-                        st.warning(
-                            "No readings found for that hour."
-                        )
-
-                else:
-
-                    st.warning(
-                        "Please enter a valid hour "
-                        "between 0 and 23."
-                    )
-
-            else:
-
-                st.info(
-                    "Try: What is the average "
-                    "consumption at 5 PM?"
-                )
-
-
-        # =================================================
-        # 5. MODEL COMPARISON
-        # =================================================
-
-        elif any(
-            word in q
-            for word in [
-                "model",
-                "algorithm",
-                "mae",
-                "rmse",
-                "mape",
-                "accuracy",
-                "performance",
-                "compare"
-            ]
-        ):
-
-            st.subheader(
-                "🤖 Model Performance"
-            )
-
-            st.dataframe(
-                comparison_df,
-                use_container_width=True
-            )
-
-
-        # =================================================
-        # 6. TOTAL
-        # =================================================
-
-        elif "total" in q:
-
-            if power_column is not None:
-
-                st.success(
-                    f"Total recorded consumption "
-                    f"is {values.sum():.2f} MW."
-                )
-
-            else:
-
-                st.error(
-                    "Historical power column not found."
-                )
-
-
-        # =================================================
-        # 7. AVERAGE
-        # =================================================
-
-        elif (
-            "average" in q
-            or "mean" in q
-        ):
-
-            if power_column is not None:
-
-                st.success(
-                    f"Average power consumption "
-                    f"is {values.mean():.2f} MW."
-                )
-
-            else:
-
-                st.error(
-                    "Historical power column not found."
-                )
-
-
-        # =================================================
-        # 8. MINIMUM
-        # =================================================
-
-        elif any(
-            word in q
-            for word in [
-                "minimum",
-                "lowest",
-                "smallest"
-            ]
-        ):
-
-            if power_column is not None:
-
-                min_index = historical_df[
-                    power_column
-                ].idxmin()
-
-                st.success(
-                    f"Minimum power consumption "
-                    f"is {values.min():.2f} MW."
-                )
-
-                st.dataframe(
-                    historical_df.loc[
-                        [min_index]
-                    ],
-                    use_container_width=True
-                )
-
-            else:
-
-                st.error(
-                    "Historical power column not found."
-                )
-
-
-        # =================================================
-        # 9. MAXIMUM / PEAK
-        # =================================================
-
-        elif any(
-            word in q
-            for word in [
-                "maximum",
-                "max",
-                "peak",
-                "highest"
-            ]
-        ):
-
-            if power_column is not None:
-
-                max_index = historical_df[
-                    power_column
-                ].idxmax()
-
-                st.success(
-                    f"Peak power consumption "
-                    f"is {values.max():.2f} MW."
-                )
-
-                st.dataframe(
-                    historical_df.loc[
-                        [max_index]
-                    ],
-                    use_container_width=True
-                )
-
-            else:
-
-                st.error(
-                    "Historical power column not found."
-                )
-
-
-        # =================================================
-        # 10. NUMBER OF RECORDS
-        # =================================================
-
-        elif any(
-            word in q
-            for word in [
-                "how many",
-                "number of records",
-                "data points",
-                "record count"
-            ]
-        ):
-
-            st.success(
-                f"The dataset contains "
-                f"{len(historical_df):,} "
-                "valid power consumption records."
-            )
-
-
-        # =================================================
-        # 11. UNKNOWN QUESTION
-        # =================================================
-
-        else:
-
-            st.warning(
-                "I could not identify that question."
-            )
-
-            st.markdown("""
-            ### 💡 Try these questions
-
-            **Historical Data**
-
-            • What is the average power consumption?
-
-            • What was the peak power consumption?
-
-            • What was the minimum power consumption?
-
-            • What is the average consumption at 5 PM?
-
-            • Show the last 10 readings.
-
-            • Show the top 10 peak readings.
-
-            **Forecast Data**
-
-            • Show the next 24-hour forecast.
-
-            • What is the predicted average consumption?
-
-            • What is the predicted peak consumption?
-
-            • What is the predicted minimum consumption?
-
-            **Model Performance**
-
-            • Compare the forecasting models.
-
-            **Dataset**
-
-            • How many records are available?
-
-            • What is the total consumption?
-            """)
-
-
-# =========================================================
-# FOOTER
-# =========================================================
-
-st.divider()
-
-st.caption(
-    "⚡ Power Consumption Forecasting | "
-    "AI & Machine Learning Project | "
-    "Natural Language Forecast Assistant"
-)
+    co
+```
