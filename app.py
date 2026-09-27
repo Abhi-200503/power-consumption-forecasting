@@ -376,8 +376,8 @@ elif page == "Natural Language Query":
     st.header("💬 Natural Language Query")
 
     st.write(
-        "Ask simple questions about the power consumption dataset "
-        "and forecast results."
+    "Ask questions about historical power consumption, "
+    "24-hour forecasts, and model performance."
     )
 
     question = st.text_input(
