@@ -118,3 +118,18 @@ Natural Language Query Interface
 - Use advanced models such as XGBoost, LSTM or Transformer models
 - Connect the query system to a SQL database
 - Deploy the application using Streamlit
+## Technologies Used
+
+- Python
+- Pandas
+- NumPy
+- Scikit-learn
+- Streamlit
+- Machine Learning
+
+## How to Run the Application
+
+Install the required dependencies:
+
+```bash
+pip install -r requirements.txt
